@@ -23,6 +23,14 @@ export interface StudentProfile {
   department?: string | null;
   year_of_study?: number | null;
   address?: string | null;
+  photo_url?: string | null;
+  course?: string | null;
+  academic_year?: string | null;
+  admission_date?: string | null;
+  hostel_joining_date?: string | null;
+  blood_group?: string | null;
+  current_status?: 'present_in_hostel' | 'outside_hostel' | 'on_approved_leave' | 'gate_pass_issued' | 'leave_pending_approval' | 'overdue_return' | 'permanently_checked_out' | 'inactive_admission' | string;
+  emergency_info?: string | null;
   created_at: string;
   updated_at: string;
   current_room?: string | null;
@@ -31,6 +39,7 @@ export interface StudentProfile {
 export interface Room {
   id: number;
   room_number: string;
+  hostel_name?: string;
   block: string;
   floor: number;
   capacity: number;
@@ -42,12 +51,24 @@ export interface Room {
   occupied_count?: number;
 }
 
+export interface Bed {
+  bed_number: string;
+  status: 'available' | 'occupied';
+  student_id?: number | null;
+  student_name?: string | null;
+  registration_no?: string | null;
+  allocation_id?: number | null;
+  allocated_from?: string | null;
+}
+
 export interface RoomAllocation {
   id: number;
   student_id: number;
   room_id: number;
+  bed_number?: string;
   student_name?: string | null;
   room_number?: string | null;
+  hostel_name?: string;
   block?: string | null;
   allocated_from: string;
   allocated_to?: string | null;

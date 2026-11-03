@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { BedDouble, Plus, UserCheck, Trash2, Edit3, CheckCircle, AlertCircle } from 'lucide-react';
+import { BedDouble, Plus, UserCheck, Trash2, CheckCircle, AlertCircle, Eye, Building, Layers, Check, UserMinus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Room, RoomAllocation, StudentProfile } from '../types';
+import { Room, RoomAllocation, StudentProfile, Bed } from '../types';
 import { EmptyState } from '../components/EmptyState';
 import { Modal } from '../components/Modal';
 
@@ -20,6 +20,7 @@ export const Rooms: React.FC = () => {
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [roomForm, setRoomForm] = useState({
     room_number: '',
+    hostel_name: 'Main Campus Hostel',
     block: '',
     floor: '' as number | '',
     capacity: '' as number | '',
@@ -33,9 +34,16 @@ export const Rooms: React.FC = () => {
   const [allocForm, setAllocForm] = useState({
     student_id: 0,
     room_id: 0,
-    allocated_from: '',
+    bed_number: '',
+    allocated_from: new Date().toISOString().split('T')[0],
     remarks: '',
   });
+  const [roomBedsForAllocation, setRoomBedsForAllocation] = useState<Bed[]>([]);
+
+  // Visual Bed View Modal State
+  const [selectedRoomForBeds, setSelectedRoomForBeds] = useState<Room | null>(null);
+  const [bedList, setBedList] = useState<Bed[]>([]);
+  const [loadingBeds, setLoadingBeds] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -64,6 +72,38 @@ export const Rooms: React.FC = () => {
     setTimeout(() => setMessage(null), 4000);
   };
 
+  // Fetch beds when a room is selected in Allocation modal
+  const handleRoomSelectionChange = async (roomId: number) => {
+    setAllocForm((prev) => ({ ...prev, room_id: roomId, bed_number: '' }));
+    if (!roomId) {
+      setRoomBedsForAllocation([]);
+      return;
+    }
+    try {
+      const beds = await api.getRoomBeds(roomId);
+      setRoomBedsForAllocation(beds);
+      const firstAvailable = beds.find((b) => b.status === 'available');
+      if (firstAvailable) {
+        setAllocForm((prev) => ({ ...prev, bed_number: firstAvailable.bed_number }));
+      }
+    } catch (e) {
+      setRoomBedsForAllocation([]);
+    }
+  };
+
+  const openVisualBeds = async (room: Room) => {
+    setSelectedRoomForBeds(room);
+    setLoadingBeds(true);
+    try {
+      const beds = await api.getRoomBeds(room.id);
+      setBedList(beds);
+    } catch (err: any) {
+      showFeedback('error', 'Failed to load bed details');
+    } finally {
+      setLoadingBeds(false);
+    }
+  };
+
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roomForm.room_number.trim() || !roomForm.block.trim()) {
@@ -87,6 +127,7 @@ export const Rooms: React.FC = () => {
       await api.createRoom({
         ...roomForm,
         room_number: roomForm.room_number.trim(),
+        hostel_name: roomForm.hostel_name.trim() || 'Main Campus Hostel',
         block: roomForm.block.trim(),
         room_type: roomForm.room_type.trim() || 'Standard',
         floor: Number(roomForm.floor),
@@ -97,6 +138,7 @@ export const Rooms: React.FC = () => {
       setIsAddRoomOpen(false);
       setRoomForm({
         room_number: '',
+        hostel_name: 'Main Campus Hostel',
         block: '',
         floor: '',
         capacity: '',
@@ -122,15 +164,20 @@ export const Rooms: React.FC = () => {
     }
     try {
       await api.createAllocation(allocForm);
-      showFeedback('success', 'Room allocated successfully to student.');
+      showFeedback('success', 'Bed allocated successfully to student.');
       setIsAllocateOpen(false);
       setAllocForm({
         student_id: 0,
         room_id: 0,
+        bed_number: '',
         allocated_from: new Date().toISOString().split('T')[0],
         remarks: '',
       });
       await loadData();
+      if (selectedRoomForBeds && selectedRoomForBeds.id === allocForm.room_id) {
+        const beds = await api.getRoomBeds(selectedRoomForBeds.id);
+        setBedList(beds);
+      }
     } catch (err: any) {
       showFeedback('error', err.message || 'Allocation failed');
     }
@@ -139,12 +186,13 @@ export const Rooms: React.FC = () => {
   const handleVacate = async (allocId: number) => {
     if (!window.confirm('Are you sure you want to mark this room bed as vacated?')) return;
     try {
-      await api.updateAllocation(allocId, {
-        status: 'vacated',
-        allocated_to: new Date().toISOString().split('T')[0],
-      });
+      await api.vacateAllocation(allocId);
       showFeedback('success', 'Allocation vacated. Bed is now freed.');
       await loadData();
+      if (selectedRoomForBeds) {
+        const beds = await api.getRoomBeds(selectedRoomForBeds.id);
+        setBedList(beds);
+      }
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to vacate room');
     }
@@ -168,9 +216,12 @@ export const Rooms: React.FC = () => {
       {/* Header and Sub-Tab Toggle */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Hostel Rooms & Allocations</h2>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building size={22} style={{ color: 'var(--accent-primary)' }} />
+            Hostel Rooms & Bed Management
+          </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Manage physical rooms, capacities, and bed assignments.
+            Manage physical rooms, individual bed allocations, capacities, and visual occupant layouts.
           </p>
         </div>
 
@@ -240,13 +291,15 @@ export const Rooms: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Room No</th>
+                    <th>Hostel</th>
                     <th>Block</th>
                     <th>Floor</th>
                     <th>Type</th>
-                    <th>Capacity</th>
-                    <th>Occupied</th>
+                    <th>Bed Capacity</th>
+                    <th>Occupancy</th>
                     <th>Monthly Rate</th>
                     <th>Status</th>
+                    <th>Bed Layout</th>
                     {canManage && <th>Actions</th>}
                   </tr>
                 </thead>
@@ -255,13 +308,25 @@ export const Rooms: React.FC = () => {
                     const occ = r.occupied_count || 0;
                     return (
                       <tr key={r.id}>
-                        <td style={{ fontWeight: 700 }}>{r.room_number}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{r.room_number}</td>
+                        <td style={{ fontSize: '0.85rem' }}>{r.hostel_name || 'Main Campus Hostel'}</td>
                         <td>{r.block}</td>
                         <td>Floor {r.floor}</td>
                         <td>{r.room_type}</td>
                         <td>{r.capacity} Beds</td>
                         <td>
-                          <span style={{ fontWeight: 600 }}>{occ}</span> / {r.capacity}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700 }}>{occ}</span> / {r.capacity}
+                            <div style={{ width: '48px', height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${Math.min(100, Math.round((occ / r.capacity) * 100))}%`,
+                                  height: '100%',
+                                  background: occ >= r.capacity ? 'var(--danger)' : 'var(--accent-primary)',
+                                }}
+                              />
+                            </div>
+                          </div>
                         </td>
                         <td>₹{Number(r.monthly_rate).toFixed(2)}</td>
                         <td>
@@ -276,6 +341,17 @@ export const Rooms: React.FC = () => {
                           >
                             {r.status}
                           </span>
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => openVisualBeds(r)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            title="View individual bed slots"
+                          >
+                            <Layers size={14} />
+                            <span>Beds</span>
+                          </button>
                         </td>
                         {canManage && (
                           <td>
@@ -318,6 +394,7 @@ export const Rooms: React.FC = () => {
                   <tr>
                     <th>Student Name</th>
                     <th>Room Assigned</th>
+                    <th>Bed Slot</th>
                     <th>Block</th>
                     <th>Allocated From</th>
                     <th>Status</th>
@@ -330,6 +407,11 @@ export const Rooms: React.FC = () => {
                     <tr key={a.id}>
                       <td style={{ fontWeight: 600 }}>{a.student_name}</td>
                       <td style={{ fontWeight: 600 }}>Room {a.room_number}</td>
+                      <td>
+                        <span className="badge badge-info" style={{ fontWeight: 600 }}>
+                          {a.bed_number || 'Bed 1'}
+                        </span>
+                      </td>
                       <td>{a.block}</td>
                       <td>{a.allocated_from}</td>
                       <td>
@@ -344,9 +426,11 @@ export const Rooms: React.FC = () => {
                             <button
                               onClick={() => handleVacate(a.id)}
                               className="btn btn-secondary btn-sm"
-                              title="Mark as vacated"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--danger)' }}
+                              title="Vacate Bed"
                             >
-                              Vacate Bed
+                              <UserMinus size={14} />
+                              <span>Vacate Bed</span>
                             </button>
                           )}
                         </td>
@@ -359,6 +443,110 @@ export const Rooms: React.FC = () => {
           )}
         </>
       )}
+
+      {/* Visual Bed Grid Modal */}
+      <Modal
+        isOpen={Boolean(selectedRoomForBeds)}
+        onClose={() => setSelectedRoomForBeds(null)}
+        title={selectedRoomForBeds ? `Room ${selectedRoomForBeds.room_number} — Bed Layout Grid` : 'Bed Layout'}
+      >
+        {selectedRoomForBeds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-muted)', borderRadius: '8px' }}>
+              <div>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Location: </span>
+                <span style={{ fontWeight: 600 }}>{selectedRoomForBeds.block}, Floor {selectedRoomForBeds.floor}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Capacity: </span>
+                <span style={{ fontWeight: 600 }}>{selectedRoomForBeds.capacity} Beds</span>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Type: </span>
+                <span style={{ fontWeight: 600 }}>{selectedRoomForBeds.room_type}</span>
+              </div>
+            </div>
+
+            {loadingBeds ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>Loading bed status...</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+                {bedList.map((b) => {
+                  const isOccupied = b.status === 'occupied';
+                  return (
+                    <div
+                      key={b.bed_number}
+                      style={{
+                        padding: '14px',
+                        border: isOccupied ? '1px solid var(--danger-border, #fca5a5)' : '1px solid var(--success-border, #86efac)',
+                        borderRadius: '8px',
+                        background: isOccupied ? 'var(--danger-bg, #fef2f2)' : 'var(--success-bg, #f0fdf4)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{b.bed_number}</span>
+                        <span
+                          className={`badge ${isOccupied ? 'badge-danger' : 'badge-success'}`}
+                          style={{ fontSize: '0.75rem' }}
+                        >
+                          {isOccupied ? 'Occupied' : 'Available'}
+                        </span>
+                      </div>
+
+                      {isOccupied ? (
+                        <div style={{ fontSize: '0.85rem' }}>
+                          <p style={{ fontWeight: 600, color: 'var(--text-main)', margin: '2px 0' }}>{b.student_name}</p>
+                          {b.registration_no && (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Roll: {b.registration_no}</p>
+                          )}
+                          {b.allocated_from && (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>From: {b.allocated_from}</p>
+                          )}
+                          {canManage && b.allocation_id && (
+                            <button
+                              onClick={() => handleVacate(b.allocation_id!)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ width: '100%', marginTop: '8px', color: 'var(--danger)' }}
+                            >
+                              Vacate Bed
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          <p style={{ margin: '4px 0 8px' }}>Ready for assignment</p>
+                          {canManage && (
+                            <button
+                              onClick={() => {
+                                setSelectedRoomForBeds(null);
+                                setAllocForm({
+                                  student_id: 0,
+                                  room_id: selectedRoomForBeds.id,
+                                  bed_number: b.bed_number,
+                                  allocated_from: new Date().toISOString().split('T')[0],
+                                  remarks: '',
+                                });
+                                setIsAllocateOpen(true);
+                              }}
+                              className="btn btn-primary btn-sm"
+                              style={{ width: '100%' }}
+                            >
+                              Assign Bed
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Add Room Modal */}
       <Modal
@@ -378,11 +566,21 @@ export const Rooms: React.FC = () => {
       >
         <form id="add-room-form" onSubmit={handleCreateRoom}>
           <div className="form-group">
+            <label className="form-label">Hostel Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={roomForm.hostel_name}
+              onChange={(e) => setRoomForm({ ...roomForm, hostel_name: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
             <label className="form-label">Room Number / ID</label>
             <input
               type="text"
               className="form-input"
-              placeholder="Enter room number"
+              placeholder="e.g. 101, A-204"
               value={roomForm.room_number}
               onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })}
               required
@@ -394,14 +592,14 @@ export const Rooms: React.FC = () => {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Enter block"
+                placeholder="Block A, Block B..."
                 value={roomForm.block}
                 onChange={(e) => setRoomForm({ ...roomForm, block: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Floor</label>
+              <label className="form-label">Floor Number</label>
               <input
                 type="number"
                 min={0}
@@ -414,11 +612,11 @@ export const Rooms: React.FC = () => {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
             <div className="form-group">
-              <label className="form-label">Bed Capacity</label>
+              <label className="form-label">Individual Bed Capacity</label>
               <input
                 type="number"
                 min={1}
-                max={6}
+                max={10}
                 className="form-input"
                 value={roomForm.capacity}
                 onChange={(e) => setRoomForm({ ...roomForm, capacity: e.target.value ? Number(e.target.value) : '' })}
@@ -434,9 +632,10 @@ export const Rooms: React.FC = () => {
                 onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}
               >
                 <option value="">Select room type</option>
-                <option value="Single Room">Single Room</option>
-                <option value="Double Sharing">Double Sharing</option>
-                <option value="Triple Sharing">Triple Sharing</option>
+                <option value="Single Room">Single Room (1 Bed)</option>
+                <option value="Double Sharing">Double Sharing (2 Beds)</option>
+                <option value="Triple Sharing">Triple Sharing (3 Beds)</option>
+                <option value="Four Sharing">Four Sharing (4 Beds)</option>
                 <option value="Deluxe AC">Deluxe AC</option>
               </select>
             </div>
@@ -460,7 +659,7 @@ export const Rooms: React.FC = () => {
       <Modal
         isOpen={isAllocateOpen}
         onClose={() => setIsAllocateOpen(false)}
-        title="Allocate Bed to Student"
+        title="Allocate Bed Slot to Student"
         footer={
           <>
             <button type="button" onClick={() => setIsAllocateOpen(false)} className="btn btn-secondary">
@@ -490,11 +689,11 @@ export const Rooms: React.FC = () => {
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Select Available Room</label>
+            <label className="form-label">Select Room</label>
             <select
               className="form-select"
               value={allocForm.room_id}
-              onChange={(e) => setAllocForm({ ...allocForm, room_id: parseInt(e.target.value) })}
+              onChange={(e) => handleRoomSelectionChange(parseInt(e.target.value))}
               required
             >
               <option value={0}>-- Choose Room --</option>
@@ -507,6 +706,24 @@ export const Rooms: React.FC = () => {
                 ))}
             </select>
           </div>
+          {allocForm.room_id > 0 && (
+            <div className="form-group">
+              <label className="form-label">Choose Individual Bed Slot</label>
+              <select
+                className="form-select"
+                value={allocForm.bed_number}
+                onChange={(e) => setAllocForm({ ...allocForm, bed_number: e.target.value })}
+                required
+              >
+                <option value="">-- Auto Assign Available Bed --</option>
+                {roomBedsForAllocation.map((b) => (
+                  <option key={b.bed_number} value={b.bed_number} disabled={b.status === 'occupied'}>
+                    {b.bed_number} — {b.status === 'occupied' ? `Occupied by ${b.student_name}` : '🟢 Available'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Allocation Start Date</label>
             <input
@@ -522,7 +739,7 @@ export const Rooms: React.FC = () => {
             <textarea
               className="form-textarea"
               rows={2}
-              placeholder="Enter allocation notes if needed"
+              placeholder="e.g. Lower bunk requested, medical accommodation"
               value={allocForm.remarks}
               onChange={(e) => setAllocForm({ ...allocForm, remarks: e.target.value })}
             />

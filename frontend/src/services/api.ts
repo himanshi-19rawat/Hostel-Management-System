@@ -1,5 +1,5 @@
 import {
-  User, StudentProfile, Room, RoomAllocation, FeeRecord,
+  User, StudentProfile, Room, RoomAllocation, Bed, FeeRecord,
   Notice, CalendarEvent, IssueRequest, UserSettings,
   HostelSettings, OperationalSummary,
   TqmVoC, TqmCtq, TqmSipoc, TqmFmea, TqmDefect, TqmPdca,
@@ -136,6 +136,7 @@ export const api = {
     if (status_filter) params.append('status_filter', status_filter);
     return request<Room[]>(`/rooms?${params.toString()}`);
   },
+  getRoomBeds: (roomId: number) => request<Bed[]>(`/rooms/${roomId}/beds`),
   createRoom: (data: Omit<Room, 'id' | 'created_at' | 'updated_at' | 'occupied_count'>) =>
     request<Room>('/rooms', { method: 'POST', body: JSON.stringify(data) }),
   updateRoom: (id: number, data: Partial<Room>) =>
@@ -148,10 +149,12 @@ export const api = {
     if (status_filter) params.append('status_filter', status_filter);
     return request<RoomAllocation[]>(`/rooms/allocations/list?${params.toString()}`);
   },
-  createAllocation: (data: { student_id: number; room_id: number; allocated_from: string; allocated_to?: string; remarks?: string }) =>
+  createAllocation: (data: { student_id: number; room_id: number; bed_number?: string; allocated_from: string; allocated_to?: string; remarks?: string }) =>
     request<RoomAllocation>('/rooms/allocations', { method: 'POST', body: JSON.stringify(data) }),
-  updateAllocation: (id: number, data: { allocated_to?: string; status?: 'active' | 'vacated'; remarks?: string }) =>
+  updateAllocation: (id: number, data: { allocated_to?: string; status?: 'active' | 'vacated'; remarks?: string; bed_number?: string }) =>
     request<RoomAllocation>(`/rooms/allocations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  vacateAllocation: (id: number) =>
+    request<RoomAllocation>(`/rooms/allocations/${id}/vacate`, { method: 'POST' }),
 
   // --- Fees ---
   getFees: (status_filter?: string, student_id?: number) => {
