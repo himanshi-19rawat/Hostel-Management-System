@@ -1,5 +1,5 @@
-from datetime import datetime, date
-from typing import Optional, List, Literal, Any
+from datetime import datetime, date, time
+from typing import Optional, List, Literal, Any, Union
 from pydantic import BaseModel, EmailStr, Field
 
 # --- Auth Schemas ---
@@ -666,6 +666,54 @@ class ParentStudentLinkOut(BaseModel):
     student_registration_no: Optional[str] = None
     relationship: str
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Gate Pass Schemas ---
+class GatePassCreate(BaseModel):
+    student_id: Optional[int] = None
+    reason: str
+    destination: str
+    departure_date: date
+    departure_time: Union[time, str]
+    expected_return_date: date
+    expected_return_time: Union[time, str]
+    emergency_contact: Optional[str] = None
+
+class GatePassReview(BaseModel):
+    status: Literal["approved", "rejected"]
+    rejection_reason: Optional[str] = None
+
+class GatePassOut(BaseModel):
+    id: int
+    pass_number: Optional[str] = None
+    student_id: int
+    student_name: Optional[str] = None
+    student_roll: Optional[str] = None
+    room_number: Optional[str] = None
+    hostel_block: Optional[str] = None
+    reason: str
+    destination: str
+    departure_date: date
+    departure_time: str
+    expected_return_date: date
+    expected_return_time: str
+    emergency_contact: Optional[str] = None
+    status: str
+    approved_by: Optional[int] = None
+    approver_name: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    actual_exit_time: Optional[datetime] = None
+    actual_return_time: Optional[datetime] = None
+    verified_by_security: Optional[int] = None
+    security_name: Optional[str] = None
+    is_late: bool = False
+    qr_data: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True

@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Date, 
+    Column, Integer, String, Boolean, DateTime, Date, Time,
     Numeric, Text, Enum, ForeignKey, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
@@ -59,6 +59,7 @@ class StudentProfile(Base):
     requests = relationship("StudentRequest", back_populates="student", cascade="all, delete-orphan")
     activity_logs = relationship("StudentActivityLog", back_populates="student", cascade="all, delete-orphan")
     parent_links = relationship("ParentStudentLink", back_populates="student", cascade="all, delete-orphan")
+    gate_passes = relationship("GatePass", back_populates="student", cascade="all, delete-orphan")
 
 
 class Room(Base):
@@ -397,3 +398,33 @@ class TqmPdca(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     creator = relationship("User")
+
+
+class GatePass(Base):
+    __tablename__ = "gate_passes"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    pass_number = Column(String(50), unique=True, nullable=True, index=True)
+    student_id = Column(Integer, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    reason = Column(String(255), nullable=False)
+    destination = Column(String(255), nullable=False)
+    departure_date = Column(Date, nullable=False)
+    departure_time = Column(Time, nullable=False)
+    expected_return_date = Column(Date, nullable=False)
+    expected_return_time = Column(Time, nullable=False)
+    emergency_contact = Column(String(50), nullable=True)
+    status = Column(Enum("pending", "approved", "rejected", "expired", "completed", "overdue", name="gate_pass_statuses"), default="pending", nullable=False, index=True)
+    approved_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    rejection_reason = Column(String(255), nullable=True)
+    actual_exit_time = Column(DateTime, nullable=True)
+    actual_return_time = Column(DateTime, nullable=True)
+    verified_by_security = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_late = Column(Boolean, default=False, nullable=False)
+    qr_data = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    student = relationship("StudentProfile", back_populates="gate_passes")
+    approver = relationship("User", foreign_keys=[approved_by])
+    security_verifier = relationship("User", foreign_keys=[verified_by_security])

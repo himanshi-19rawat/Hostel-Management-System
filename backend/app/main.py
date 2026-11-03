@@ -11,7 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api import (
     auth, users, students, rooms, fees, notices, calendar, issues,
-    settings as app_settings, reports, tqm, attendance, leave_outpass, inventory, activity
+    settings as app_settings, reports, tqm, attendance, leave_outpass, inventory, activity,
+    gate_passes
 )
 
 app = FastAPI(
@@ -53,6 +54,9 @@ app.include_router(inventory.router, prefix="/api")
 
 # Student Activity & Map routes: /api/activity/status, /api/activity/logs, /api/activity/log, /api/activity/parent-links
 app.include_router(activity.router, prefix="/api")
+
+# Gate Pass & Security Guard routes: /api/gate-passes
+app.include_router(gate_passes.router, prefix="/api")
 
 # Direct /api/inventory routes (visible in OpenAPI/Swagger docs for convenience)
 inventory_direct_router = APIRouter(prefix="/inventory", tags=["Mess Inventory"])
