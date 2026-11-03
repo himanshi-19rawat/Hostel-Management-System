@@ -92,6 +92,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     }
 
+    // Gate Passes & Security Operations
+    if (role !== 'accounts_staff') {
+      items.push({
+        id: 'security_gate',
+        label: role === 'staff' ? 'Gate Security & Passes' : 'Gate Passes & Security',
+        icon: ShieldCheck,
+        roles: ['admin', 'warden', 'staff', 'student', 'parent'],
+      });
+    }
+
     // Student specific profile & financial overview
     if (role === 'student') {
       items.push({ id: 'student_profile', label: 'My Profile', icon: Users, roles: ['student'] });

@@ -19,6 +19,7 @@ import { Attendance } from './pages/Attendance';
 import { LeaveOutpass } from './pages/LeaveOutpass';
 import { MessInventory } from './pages/MessInventory';
 import { ActivityMap } from './pages/ActivityMap';
+import { SecurityGate } from './pages/SecurityGate';
 
 const getRequestedTabFromUrl = (): string => {
   if (typeof window === 'undefined') return '';
@@ -51,15 +52,16 @@ const isTabAllowedForRole = (tab: string, role?: string | null): boolean => {
     return ['notices', 'calendar', 'settings'].includes(tab);
   }
   if (role === 'parent') {
-    return ['dashboard', 'map', 'notices', 'calendar', 'settings'].includes(tab);
+    return ['dashboard', 'map', 'security_gate', 'notices', 'calendar', 'settings'].includes(tab);
   }
   if (role === 'staff') {
-    return ['dashboard', 'map', 'notices', 'calendar', 'settings'].includes(tab);
+    return ['dashboard', 'map', 'security_gate', 'notices', 'calendar', 'settings'].includes(tab);
   }
   if (role === 'student') {
     return [
       'dashboard',
       'map',
+      'security_gate',
       'student_profile',
       'student_dues',
       'attendance',
@@ -74,6 +76,7 @@ const isTabAllowedForRole = (tab: string, role?: string | null): boolean => {
     return [
       'dashboard',
       'map',
+      'security_gate',
       'students',
       'rooms',
       'fees',
@@ -90,6 +93,7 @@ const isTabAllowedForRole = (tab: string, role?: string | null): boolean => {
     return [
       'dashboard',
       'map',
+      'security_gate',
       'students',
       'rooms',
       'fees',
@@ -190,6 +194,8 @@ const AppContent: React.FC = () => {
         return <Dashboard onNavigate={handleNavigate} />;
       case 'map':
         return <ActivityMap />;
+      case 'security_gate':
+        return <SecurityGate />;
       case 'students':
       case 'student_profile':
         return <Students />;

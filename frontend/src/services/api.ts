@@ -4,7 +4,7 @@ import {
   HostelSettings, OperationalSummary,
   TqmVoC, TqmCtq, TqmSipoc, TqmFmea, TqmDefect, TqmPdca,
   StudentAttendance, AttendanceSummary, StudentRequest, RequestStats, MessInventory,
-  StudentActivityLog, StudentStatus, ParentStudentLink
+  StudentActivityLog, StudentStatus, ParentStudentLink, GatePass
 } from '../types';
 
 // Base API URL supports environment overrides or falls back to Vite proxy `/api`
@@ -320,4 +320,34 @@ export const api = {
     request<ParentStudentLink>('/activity/parent-links', { method: 'POST', body: JSON.stringify(data) }),
   deleteParentLink: (id: number) =>
     request<{ message: string }>(`/activity/parent-links/${id}`, { method: 'DELETE' }),
+
+  // --- Gate Passes & Security Operations ---
+  getGatePasses: (status_filter?: string, student_id?: number, overdue_only?: boolean) => {
+    const params = new URLSearchParams();
+    if (status_filter) params.append('status_filter', status_filter);
+    if (student_id) params.append('student_id', String(student_id));
+    if (overdue_only) params.append('overdue_only', 'true');
+    return request<GatePass[]>(`/gate-passes?${params.toString()}`);
+  },
+  createGatePass: (data: {
+    student_id?: number;
+    reason: string;
+    destination: string;
+    departure_date: string;
+    departure_time: string;
+    expected_return_date: string;
+    expected_return_time: string;
+    emergency_contact?: string;
+  }) => request<GatePass>('/gate-passes', { method: 'POST', body: JSON.stringify(data) }),
+  reviewGatePass: (id: number, status: 'approved' | 'rejected', rejection_reason?: string) =>
+    request<GatePass>(`/gate-passes/${id}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, rejection_reason }),
+    }),
+  recordGateExit: (id: number) =>
+    request<GatePass>(`/gate-passes/${id}/record-exit`, { method: 'POST' }),
+  recordGateEntry: (id: number) =>
+    request<GatePass>(`/gate-passes/${id}/record-entry`, { method: 'POST' }),
+  verifyGatePassCode: (passNumber: string) =>
+    request<GatePass>(`/gate-passes/verify/${encodeURIComponent(passNumber)}`),
 };

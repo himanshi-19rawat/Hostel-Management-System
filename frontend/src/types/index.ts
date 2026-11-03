@@ -359,3 +359,33 @@ export interface ParentStudentLink {
   relationship: string;
   created_at: string;
 }
+
+export interface GatePass {
+  id: number;
+  pass_number?: string | null;
+  student_id: number;
+  student_name?: string | null;
+  student_roll?: string | null;
+  room_number?: string | null;
+  hostel_block?: string | null;
+  reason: string;
+  destination: string;
+  departure_date: string;
+  departure_time: string;
+  expected_return_date: string;
+  expected_return_time: string;
+  emergency_contact?: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'completed' | 'overdue';
+  approved_by?: number | null;
+  approver_name?: string | null;
+  approved_at?: string | null;
+  rejection_reason?: string | null;
+  actual_exit_time?: string | null;
+  actual_return_time?: string | null;
+  verified_by_security?: number | null;
+  security_name?: string | null;
+  is_late: boolean;
+  qr_data?: string | null;
+  created_at: string;
+  updated_at: string;
+}
