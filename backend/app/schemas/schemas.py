@@ -293,10 +293,14 @@ class IssueRequestCreate(BaseModel):
     title: str
     description: str
     priority: Literal["low", "medium", "high"] = "medium"
+    target_deadline: Optional[date] = None
+    assigned_staff_id: Optional[int] = None
 
 class IssueStatusUpdate(BaseModel):
     status: Literal["open", "in_progress", "resolved", "rejected"]
     resolution_remarks: Optional[str] = None
+    assigned_staff_id: Optional[int] = None
+    target_deadline: Optional[date] = None
 
 class IssueRequestOut(BaseModel):
     id: int
@@ -308,6 +312,10 @@ class IssueRequestOut(BaseModel):
     description: str
     priority: str
     status: str
+    assigned_staff_id: Optional[int] = None
+    assigned_staff_name: Optional[str] = None
+    target_deadline: Optional[date] = None
+    resolved_at: Optional[datetime] = None
     resolution_remarks: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -712,6 +720,35 @@ class GatePassOut(BaseModel):
     security_name: Optional[str] = None
     is_late: bool = False
     qr_data: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Staff Profile Schemas ---
+class StaffProfileBase(BaseModel):
+    user_id: int
+    employee_id: Optional[str] = None
+    full_name: str
+    designation: str = "General Staff"
+    phone: Optional[str] = None
+    assigned_block: Optional[str] = None
+    is_available: bool = True
+
+class StaffProfileCreate(BaseModel):
+    user_id: int
+    employee_id: Optional[str] = None
+    full_name: str
+    designation: str = "General Staff"
+    phone: Optional[str] = None
+    assigned_block: Optional[str] = None
+    is_available: bool = True
+
+class StaffProfileOut(StaffProfileBase):
+    id: int
+    email: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

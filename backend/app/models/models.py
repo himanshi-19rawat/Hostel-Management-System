@@ -19,6 +19,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     student_profile = relationship("StudentProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    staff_profile = relationship("StaffProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     notices_authored = relationship("Notice", back_populates="author", cascade="all, delete-orphan")
     events_created = relationship("CalendarEvent", back_populates="creator", cascade="all, delete-orphan")
@@ -161,11 +162,15 @@ class IssueRequest(Base):
     description = Column(Text, nullable=False)
     priority = Column(Enum("low", "medium", "high", name="issue_priorities"), default="medium", nullable=False)
     status = Column(Enum("open", "in_progress", "resolved", "rejected", name="issue_statuses"), default="open", nullable=False, index=True)
+    assigned_staff_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    target_deadline = Column(Date, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
     resolution_remarks = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     student = relationship("StudentProfile", back_populates="issues")
+    assigned_staff = relationship("User", foreign_keys=[assigned_staff_id])
 
 
 class UserSettings(Base):
@@ -428,3 +433,20 @@ class GatePass(Base):
     student = relationship("StudentProfile", back_populates="gate_passes")
     approver = relationship("User", foreign_keys=[approved_by])
     security_verifier = relationship("User", foreign_keys=[verified_by_security])
+
+
+class StaffProfile(Base):
+    __tablename__ = "staff_profiles"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    employee_id = Column(String(50), unique=True, nullable=True)
+    full_name = Column(String(150), nullable=False)
+    designation = Column(String(100), default="General Staff", nullable=False)
+    phone = Column(String(50), nullable=True)
+    assigned_block = Column(String(50), nullable=True)
+    is_available = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="staff_profile")

@@ -1,19 +1,56 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.core.permissions import get_current_user, require_admin_or_warden
-from app.models.models import IssueRequest, StudentProfile, RoomAllocation, Room, User
-from app.schemas.schemas import IssueRequestOut, IssueRequestCreate, IssueStatusUpdate
+from app.models.models import IssueRequest, StudentProfile, RoomAllocation, Room, User, StaffProfile
+from app.schemas.schemas import IssueRequestOut, IssueRequestCreate, IssueStatusUpdate, StaffProfileOut
 
-router = APIRouter(prefix="/issues", tags=["Issue Requests & Complaints"])
+router = APIRouter(prefix="/issues", tags=["Issue Requests & Maintenance"])
+
+def get_staff_name(staff_id: Optional[int], db: Session) -> Optional[str]:
+    if not staff_id:
+        return None
+    sp = db.query(StaffProfile).filter(StaffProfile.user_id == staff_id).first()
+    if sp:
+        return f"{sp.full_name} ({sp.designation})"
+    u = db.query(User).filter(User.id == staff_id).first()
+    return u.email if u else None
+
+@router.get("/staff-directory", response_model=List[StaffProfileOut])
+def get_staff_directory(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role == "accounts_staff":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+    
+    profiles = db.query(StaffProfile).all()
+    results = []
+    for sp in profiles:
+        user_email = sp.user.email if sp.user else None
+        results.append(StaffProfileOut(
+            id=sp.id,
+            user_id=sp.user_id,
+            employee_id=sp.employee_id,
+            full_name=sp.full_name,
+            designation=sp.designation,
+            phone=sp.phone,
+            assigned_block=sp.assigned_block,
+            is_available=sp.is_available,
+            email=user_email,
+            created_at=sp.created_at,
+            updated_at=sp.updated_at
+        ))
+    return results
 
 @router.get("", response_model=List[IssueRequestOut])
 @router.get("/", response_model=List[IssueRequestOut], include_in_schema=False)
 def list_issues(
     status_filter: Optional[str] = None,
     category: Optional[str] = None,
+    assigned_to_me: Optional[bool] = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -27,6 +64,9 @@ def list_issues(
         if not profile:
             return []
         query = query.filter(IssueRequest.student_id == profile.id)
+    elif current_user.role == "staff":
+        if assigned_to_me:
+            query = query.filter(IssueRequest.assigned_staff_id == current_user.id)
     else:
         if status_filter:
             query = query.filter(IssueRequest.status == status_filter)
@@ -36,7 +76,6 @@ def list_issues(
     issues = query.order_by(IssueRequest.created_at.desc()).all()
     results = []
     for issue in issues:
-        # fetch room number
         alloc = db.query(RoomAllocation).join(Room).filter(
             RoomAllocation.student_id == issue.student_id,
             RoomAllocation.status == "active"
@@ -53,6 +92,10 @@ def list_issues(
             description=issue.description,
             priority=issue.priority,
             status=issue.status,
+            assigned_staff_id=issue.assigned_staff_id,
+            assigned_staff_name=get_staff_name(issue.assigned_staff_id, db),
+            target_deadline=issue.target_deadline,
+            resolved_at=issue.resolved_at,
             resolution_remarks=issue.resolution_remarks,
             created_at=issue.created_at,
             updated_at=issue.updated_at
@@ -77,7 +120,9 @@ def submit_issue(
             title=data.title.strip(),
             description=data.description.strip(),
             priority=data.priority,
-            status="open"
+            status="open",
+            target_deadline=data.target_deadline,
+            assigned_staff_id=data.assigned_staff_id
         )
         db.add(issue)
         db.commit()
@@ -102,6 +147,10 @@ def submit_issue(
         description=issue.description,
         priority=issue.priority,
         status=issue.status,
+        assigned_staff_id=issue.assigned_staff_id,
+        assigned_staff_name=get_staff_name(issue.assigned_staff_id, db),
+        target_deadline=issue.target_deadline,
+        resolved_at=issue.resolved_at,
         resolution_remarks=issue.resolution_remarks,
         created_at=issue.created_at,
         updated_at=issue.updated_at
@@ -112,8 +161,11 @@ def update_issue_status(
     issue_id: int,
     data: IssueStatusUpdate,
     db: Session = Depends(get_db),
-    manager: User = Depends(require_admin_or_warden)
+    current_user: User = Depends(get_current_user)
 ):
+    if current_user.role not in ("admin", "warden", "staff"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only staff, warden, or admin can update maintenance status.")
+
     issue = db.query(IssueRequest).filter(IssueRequest.id == issue_id).first()
     if not issue:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue request not found.")
@@ -121,6 +173,15 @@ def update_issue_status(
     issue.status = data.status
     if data.resolution_remarks is not None:
         issue.resolution_remarks = data.resolution_remarks
+
+    if data.assigned_staff_id is not None:
+        issue.assigned_staff_id = data.assigned_staff_id
+
+    if data.target_deadline is not None:
+        issue.target_deadline = data.target_deadline
+
+    if data.status == "resolved" and not issue.resolved_at:
+        issue.resolved_at = datetime.utcnow()
 
     db.commit()
     db.refresh(issue)
@@ -141,6 +202,10 @@ def update_issue_status(
         description=issue.description,
         priority=issue.priority,
         status=issue.status,
+        assigned_staff_id=issue.assigned_staff_id,
+        assigned_staff_name=get_staff_name(issue.assigned_staff_id, db),
+        target_deadline=issue.target_deadline,
+        resolved_at=issue.resolved_at,
         resolution_remarks=issue.resolution_remarks,
         created_at=issue.created_at,
         updated_at=issue.updated_at

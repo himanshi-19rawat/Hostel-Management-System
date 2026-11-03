@@ -137,10 +137,14 @@ CREATE TABLE IF NOT EXISTS `issue_requests` (
   `description` TEXT NOT NULL,
   `priority` ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
   `status` ENUM('open', 'in_progress', 'resolved', 'rejected') NOT NULL DEFAULT 'open',
+  `assigned_staff_id` INT NULL,
+  `target_deadline` DATE NULL,
+  `resolved_at` DATETIME NULL,
   `resolution_remarks` TEXT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT `fk_issues_student` FOREIGN KEY (`student_id`) REFERENCES `student_profiles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_issues_staff` FOREIGN KEY (`assigned_staff_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   INDEX `idx_issues_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -390,4 +394,19 @@ CREATE TABLE IF NOT EXISTS `gate_passes` (
   INDEX `idx_gate_passes_status` (`status`),
   INDEX `idx_gate_passes_student` (`student_id`),
   INDEX `idx_gate_passes_pass_no` (`pass_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 20. Staff Profiles (Maintenance & Campus Staff)
+CREATE TABLE IF NOT EXISTS `staff_profiles` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL UNIQUE,
+  `employee_id` VARCHAR(50) UNIQUE NULL,
+  `full_name` VARCHAR(150) NOT NULL,
+  `designation` VARCHAR(100) NOT NULL DEFAULT 'General Staff',
+  `phone` VARCHAR(50) NULL,
+  `assigned_block` VARCHAR(50) NULL,
+  `is_available` BOOLEAN NOT NULL DEFAULT TRUE,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_staff_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
