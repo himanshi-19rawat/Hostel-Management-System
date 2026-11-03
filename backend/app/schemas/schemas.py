@@ -57,6 +57,14 @@ class StudentProfileBase(BaseModel):
     department: Optional[str] = None
     year_of_study: Optional[int] = None
     address: Optional[str] = None
+    photo_url: Optional[str] = None
+    course: Optional[str] = "Computer Science and Engineering"
+    academic_year: Optional[str] = "2024-2025"
+    admission_date: Optional[date] = None
+    hostel_joining_date: Optional[date] = None
+    blood_group: Optional[str] = "O+"
+    current_status: Optional[str] = "present_in_hostel"
+    emergency_info: Optional[str] = None
 
 class StudentProfileCreate(StudentProfileBase):
     email: EmailStr
@@ -70,6 +78,14 @@ class StudentProfileUpdate(BaseModel):
     department: Optional[str] = None
     year_of_study: Optional[int] = None
     address: Optional[str] = None
+    photo_url: Optional[str] = None
+    course: Optional[str] = None
+    academic_year: Optional[str] = None
+    admission_date: Optional[date] = None
+    hostel_joining_date: Optional[date] = None
+    blood_group: Optional[str] = None
+    current_status: Optional[str] = None
+    emergency_info: Optional[str] = None
 
 class StudentContactUpdate(BaseModel):
     # What students themselves are permitted to edit
@@ -92,6 +108,7 @@ class StudentProfileOut(StudentProfileBase):
 # --- Room Schemas ---
 class RoomBase(BaseModel):
     room_number: str
+    hostel_name: str = "Main Campus Hostel"
     block: str
     floor: int = 1
     capacity: int = 1
@@ -104,6 +121,7 @@ class RoomCreate(RoomBase):
 
 class RoomUpdate(BaseModel):
     room_number: Optional[str] = None
+    hostel_name: Optional[str] = None
     block: Optional[str] = None
     floor: Optional[int] = None
     capacity: Optional[int] = None
@@ -120,15 +138,27 @@ class RoomOut(RoomBase):
     class Config:
         from_attributes = True
 
+# --- Individual Bed Info Schema ---
+class BedOut(BaseModel):
+    bed_number: str
+    status: Literal["available", "occupied"]
+    student_id: Optional[int] = None
+    student_name: Optional[str] = None
+    registration_no: Optional[str] = None
+    allocation_id: Optional[int] = None
+    allocated_from: Optional[date] = None
+
 # --- Room Allocation Schemas ---
 class RoomAllocationCreate(BaseModel):
     student_id: int
     room_id: int
+    bed_number: Optional[str] = None
     allocated_from: date
     allocated_to: Optional[date] = None
     remarks: Optional[str] = None
 
 class RoomAllocationUpdate(BaseModel):
+    bed_number: Optional[str] = None
     allocated_to: Optional[date] = None
     status: Optional[Literal["active", "vacated"]] = None
     remarks: Optional[str] = None
@@ -137,8 +167,10 @@ class RoomAllocationOut(BaseModel):
     id: int
     student_id: int
     room_id: int
+    bed_number: Optional[str] = "Bed 1"
     student_name: Optional[str] = None
     room_number: Optional[str] = None
+    hostel_name: Optional[str] = "Main Campus Hostel"
     block: Optional[str] = None
     allocated_from: date
     allocated_to: Optional[date] = None

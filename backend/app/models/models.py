@@ -36,6 +36,18 @@ class StudentProfile(Base):
     department = Column(String(100), nullable=True)
     year_of_study = Column(Integer, nullable=True)
     address = Column(Text, nullable=True)
+    photo_url = Column(String(255), nullable=True)
+    course = Column(String(100), nullable=True, default="Computer Science & Engineering")
+    academic_year = Column(String(50), nullable=True, default="2024-2025")
+    admission_date = Column(Date, nullable=True)
+    hostel_joining_date = Column(Date, nullable=True)
+    blood_group = Column(String(10), nullable=True, default="O+")
+    current_status = Column(
+        Enum('present_in_hostel', 'outside_hostel', 'on_approved_leave', 'gate_pass_issued', 'leave_pending_approval', 'overdue_return', 'permanently_checked_out', 'inactive_admission', name="student_current_status"),
+        default='present_in_hostel',
+        nullable=False
+    )
+    emergency_info = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -54,6 +66,7 @@ class Room(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     room_number = Column(String(20), unique=True, nullable=False)
+    hostel_name = Column(String(100), default="Main Campus Hostel", nullable=False)
     block = Column(String(50), nullable=False)
     floor = Column(Integer, default=1, nullable=False)
     capacity = Column(Integer, default=1, nullable=False)
@@ -72,6 +85,7 @@ class RoomAllocation(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     student_id = Column(Integer, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
     room_id = Column(Integer, ForeignKey("rooms.id", ondelete="RESTRICT"), nullable=False)
+    bed_number = Column(String(20), default="Bed 1", nullable=False)
     allocated_from = Column(Date, nullable=False)
     allocated_to = Column(Date, nullable=True)
     status = Column(Enum("active", "vacated", name="allocation_statuses"), default="active", nullable=False, index=True)
