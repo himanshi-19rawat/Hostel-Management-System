@@ -4,10 +4,12 @@ import { api } from '../services/api';
 
 interface ThemeContextType {
   theme: 'light' | 'dark' | 'system';
+  colorTheme: 'blue' | 'emerald' | 'violet' | 'slate';
   highContrast: boolean;
   fontSize: 'small' | 'medium' | 'large';
   compactTables: boolean;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setColorTheme: (colorTheme: 'blue' | 'emerald' | 'violet' | 'slate') => void;
   setHighContrast: (contrast: boolean) => void;
   setFontSize: (size: 'small' | 'medium' | 'large') => void;
   setCompactTables: (compact: boolean) => void;
@@ -19,6 +21,9 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>(() => {
     return (localStorage.getItem('pref_theme') as any) || 'light';
+  });
+  const [colorTheme, setColorThemeState] = useState<'blue' | 'emerald' | 'violet' | 'slate'>(() => {
+    return (localStorage.getItem('pref_color_theme') as any) || 'blue';
   });
   const [highContrast, setHighContrastState] = useState<boolean>(() => {
     return localStorage.getItem('pref_contrast') === 'true';
@@ -33,7 +38,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const applyDomClasses = () => {
     const root = document.documentElement;
     
-    // Theme
+    // Theme mode
     let isDark = theme === 'dark';
     if (theme === 'system') {
       isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -43,6 +48,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       root.classList.remove('dark');
     }
+
+    // Color theme
+    root.setAttribute('data-color-theme', colorTheme);
 
     // High contrast
     if (highContrast) {
@@ -64,12 +72,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     applyDomClasses();
-  }, [theme, highContrast, fontSize, compactTables]);
+  }, [theme, colorTheme, highContrast, fontSize, compactTables]);
 
   const setTheme = (t: 'light' | 'dark' | 'system') => {
     setThemeState(t);
     localStorage.setItem('pref_theme', t);
     saveToBackend({ theme: t });
+  };
+
+  const setColorTheme = (ct: 'blue' | 'emerald' | 'violet' | 'slate') => {
+    setColorThemeState(ct);
+    localStorage.setItem('pref_color_theme', ct);
   };
 
   const setHighContrast = (hc: boolean) => {
@@ -122,10 +135,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ThemeContext.Provider
       value={{
         theme,
+        colorTheme,
         highContrast,
         fontSize,
         compactTables,
         setTheme,
+        setColorTheme,
         setHighContrast,
         setFontSize,
         setCompactTables,

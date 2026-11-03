@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Moon, Sun, Contrast, Type, Table, Key, Building2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Moon, Sun, Contrast, Type, Table, Key, Building2, CheckCircle, AlertCircle, Palette } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -9,6 +9,7 @@ export const Settings: React.FC = () => {
   const { role } = useAuth();
   const {
     theme, setTheme,
+    colorTheme, setColorTheme,
     highContrast, setHighContrast,
     fontSize, setFontSize,
     compactTables, setCompactTables,
@@ -107,6 +108,51 @@ export const Settings: React.FC = () => {
                 style={{ flex: 1 }}
               >
                 System
+              </button>
+            </div>
+          </div>
+
+          {/* Accent Color Palette */}
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Palette size={16} /> Accent Theme Palette
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setColorTheme('blue')}
+                className={`btn btn-sm ${colorTheme === 'blue' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#2563eb' }}></span>
+                Blue
+              </button>
+              <button
+                type="button"
+                onClick={() => setColorTheme('emerald')}
+                className={`btn btn-sm ${colorTheme === 'emerald' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#059669' }}></span>
+                Emerald
+              </button>
+              <button
+                type="button"
+                onClick={() => setColorTheme('violet')}
+                className={`btn btn-sm ${colorTheme === 'violet' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#7c3aed' }}></span>
+                Violet
+              </button>
+              <button
+                type="button"
+                onClick={() => setColorTheme('slate')}
+                className={`btn btn-sm ${colorTheme === 'slate' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#475569' }}></span>
+                Slate
               </button>
             </div>
           </div>
