@@ -11,11 +11,39 @@ from app.schemas.schemas import (
 
 router = APIRouter(prefix="/students", tags=["Student Profiles"])
 
+def _to_profile_out(s: StudentProfile, user: Optional[User], room_str: Optional[str]) -> StudentProfileOut:
+    return StudentProfileOut(
+        id=s.id,
+        user_id=s.user_id,
+        email=user.email if user else None,
+        is_active=user.is_active if user else True,
+        full_name=s.full_name,
+        registration_no=s.registration_no,
+        phone=s.phone,
+        emergency_contact=s.emergency_contact,
+        department=s.department,
+        year_of_study=s.year_of_study,
+        address=s.address,
+        photo_url=s.photo_url,
+        course=s.course,
+        academic_year=s.academic_year,
+        admission_date=s.admission_date,
+        hostel_joining_date=s.hostel_joining_date,
+        blood_group=s.blood_group,
+        current_status=s.current_status,
+        emergency_info=s.emergency_info,
+        created_at=s.created_at,
+        updated_at=s.updated_at,
+        current_room=room_str
+    )
+
 @router.get("", response_model=List[StudentProfileOut])
 @router.get("/", response_model=List[StudentProfileOut], include_in_schema=False)
 def list_students(
     search: Optional[str] = None,
     department: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    course: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -35,6 +63,10 @@ def list_students(
         )
     if department:
         query = query.filter(StudentProfile.department == department)
+    if course:
+        query = query.filter(StudentProfile.course.ilike(f"%{course}%"))
+    if status_filter:
+        query = query.filter(StudentProfile.current_status == status_filter)
         
     students = query.order_by(StudentProfile.id.asc()).all()
     results = []
@@ -45,23 +77,7 @@ def list_students(
             RoomAllocation.status == "active"
         ).first()
         room_str = f"{alloc.room.block} - Room {alloc.room.room_number}" if alloc and alloc.room else None
-
-        results.append(StudentProfileOut(
-            id=s.id,
-            user_id=s.user_id,
-            email=s.user.email if s.user else None,
-            is_active=s.user.is_active if s.user else True,
-            full_name=s.full_name,
-            registration_no=s.registration_no,
-            phone=s.phone,
-            emergency_contact=s.emergency_contact,
-            department=s.department,
-            year_of_study=s.year_of_study,
-            address=s.address,
-            created_at=s.created_at,
-            updated_at=s.updated_at,
-            current_room=room_str
-        ))
+        results.append(_to_profile_out(s, s.user, room_str))
     return results
 
 @router.get("/me", response_model=StudentProfileOut)
@@ -82,22 +98,7 @@ def get_my_student_profile(
     ).first()
     room_str = f"{alloc.room.block} - Room {alloc.room.room_number}" if alloc and alloc.room else None
 
-    return StudentProfileOut(
-        id=profile.id,
-        user_id=profile.user_id,
-        email=current_user.email,
-        is_active=current_user.is_active,
-        full_name=profile.full_name,
-        registration_no=profile.registration_no,
-        phone=profile.phone,
-        emergency_contact=profile.emergency_contact,
-        department=profile.department,
-        year_of_study=profile.year_of_study,
-        address=profile.address,
-        created_at=profile.created_at,
-        updated_at=profile.updated_at,
-        current_room=room_str
-    )
+    return _to_profile_out(profile, current_user, room_str)
 
 @router.put("/me/contact", response_model=StudentProfileOut)
 def update_my_contact(
@@ -118,6 +119,8 @@ def update_my_contact(
         profile.emergency_contact = data.emergency_contact
     if data.address is not None:
         profile.address = data.address
+    if data.emergency_info is not None:
+        profile.emergency_info = data.emergency_info
 
     db.commit()
     db.refresh(profile)
@@ -128,22 +131,7 @@ def update_my_contact(
     ).first()
     room_str = f"{alloc.room.block} - Room {alloc.room.room_number}" if alloc and alloc.room else None
 
-    return StudentProfileOut(
-        id=profile.id,
-        user_id=profile.user_id,
-        email=current_user.email,
-        is_active=current_user.is_active,
-        full_name=profile.full_name,
-        registration_no=profile.registration_no,
-        phone=profile.phone,
-        emergency_contact=profile.emergency_contact,
-        department=profile.department,
-        year_of_study=profile.year_of_study,
-        address=profile.address,
-        created_at=profile.created_at,
-        updated_at=profile.updated_at,
-        current_room=room_str
-    )
+    return _to_profile_out(profile, current_user, room_str)
 
 @router.get("/{student_id}", response_model=StudentProfileOut)
 def get_student_detail(
@@ -167,22 +155,7 @@ def get_student_detail(
     ).first()
     room_str = f"{alloc.room.block} - Room {alloc.room.room_number}" if alloc and alloc.room else None
 
-    return StudentProfileOut(
-        id=profile.id,
-        user_id=profile.user_id,
-        email=profile.user.email if profile.user else None,
-        is_active=profile.user.is_active if profile.user else True,
-        full_name=profile.full_name,
-        registration_no=profile.registration_no,
-        phone=profile.phone,
-        emergency_contact=profile.emergency_contact,
-        department=profile.department,
-        year_of_study=profile.year_of_study,
-        address=profile.address,
-        created_at=profile.created_at,
-        updated_at=profile.updated_at,
-        current_room=room_str
-    )
+    return _to_profile_out(profile, profile.user, room_str)
 
 @router.put("/{student_id}", response_model=StudentProfileOut)
 def update_student(
@@ -207,19 +180,4 @@ def update_student(
     ).first()
     room_str = f"{alloc.room.block} - Room {alloc.room.room_number}" if alloc and alloc.room else None
 
-    return StudentProfileOut(
-        id=profile.id,
-        user_id=profile.user_id,
-        email=profile.user.email if profile.user else None,
-        is_active=profile.user.is_active if profile.user else True,
-        full_name=profile.full_name,
-        registration_no=profile.registration_no,
-        phone=profile.phone,
-        emergency_contact=profile.emergency_contact,
-        department=profile.department,
-        year_of_study=profile.year_of_study,
-        address=profile.address,
-        created_at=profile.created_at,
-        updated_at=profile.updated_at,
-        current_room=room_str
-    )
+    return _to_profile_out(profile, profile.user, room_str)
